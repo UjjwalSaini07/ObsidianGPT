@@ -6,20 +6,22 @@ export default function Sidebar({
   selectedConv,
   setConversations,
   setSelectedConv,
+  getToken,
 }) {
   const handleNewChat = async () => {
     try {
       const token = await getToken();
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ title: "New Conversation" }),
       });
-
       if (!res.ok) throw new Error("Failed to create conversation");
-
       const data = await res.json();
+
       if (!data.conversation?._id) {
         alert("Failed to create a new conversation");
         return;
@@ -30,6 +32,27 @@ export default function Sidebar({
     } catch (err) {
       console.error("Failed to create conversation:", err);
       alert("Error creating conversation");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this conversation?")) return;
+
+    try {
+      const token = await getToken();
+      const res = await fetch(`/api/messages/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to delete conversation");
+
+      setConversations((prev) => prev.filter((c) => c._id !== id));
+      if (selectedConv?._id === id) setSelectedConv(null);
+    } catch (err) {
+      console.error("Error deleting conversation:", err);
+      alert("Failed to delete conversation");
     }
   };
 
@@ -45,15 +68,25 @@ export default function Sidebar({
 
       <div className="mt-4 flex flex-col gap-2">
         {conversations.map((conv) => (
-          <button
+          <div
             key={conv._id}
-            onClick={() => onSelect(conv)}
-            className={`text-left p-2 rounded-lg hover:bg-gray-200 ${
+            className={`flex justify-between items-center p-2 rounded-lg hover:bg-gray-200 ${
               selectedConv?._id === conv._id ? "bg-gray-200" : ""
             }`}
           >
-            {conv.title || "Untitled"}
-          </button>
+            <button
+              className="text-left flex-1"
+              onClick={() => onSelect(conv)}
+            >
+              {conv.title || "Untitled"}
+            </button>
+            <button
+              className="text-red-500 ml-2"
+              onClick={() => handleDelete(conv._id)}
+            >
+              Delete
+            </button>
+          </div>
         ))}
       </div>
     </div>

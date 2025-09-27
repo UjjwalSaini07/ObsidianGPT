@@ -15,12 +15,12 @@ export default function ChatPage() {
   useEffect(() => {
     async function fetchConversations() {
       try {
-        const token = await getToken(); // ← get JWT
+        const token = await getToken();
         const res = await fetch("/api/chat", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`, // ← pass token
+            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -68,12 +68,9 @@ export default function ChatPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            title: "New Conversation",
-          }),
+          body: JSON.stringify({ title: "New Conversation" }),
         });
         const data = await res.json();
-        console.log("Auto-created conversation:", data);
 
         if (!data.conversation?._id) {
           alert("Failed to create conversation");
@@ -90,7 +87,6 @@ export default function ChatPage() {
       }
     }
 
-    // Send the message
     try {
       const token = await getToken();
       const res = await fetch(`/api/messages/${convId}`, {
@@ -111,7 +107,14 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <Sidebar conversations={conversations} onSelect={setSelectedConv} />
+      <Sidebar
+        conversations={conversations}
+        onSelect={setSelectedConv}
+        selectedConv={selectedConv}
+        setConversations={setConversations}
+        setSelectedConv={setSelectedConv}
+        getToken={getToken}
+      />
       <div className="flex-1 flex flex-col p-4 gap-2">
         <ChatWindow messages={messages} />
         <ChatInput onSend={handleSend} />

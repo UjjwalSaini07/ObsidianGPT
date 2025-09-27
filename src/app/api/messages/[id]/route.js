@@ -13,7 +13,6 @@ export async function GET(req, context) {
       return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
     }
 
-    // ✅ await params
     const { id } = await context.params;
 
     const messages = await Message.find({ conversationId: id })
@@ -62,9 +61,12 @@ export async function DELETE(req, context) {
   try {
     await dbConnect();
     const user = getAuthUser(req);
-    if (!user) return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
+    if (!user) {
+      console.error("❌ Auth error: User not authenticated");
+      return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
+    }
 
-    const { id } = context.params;
+    const { id } = await context.params;
     const conv = await Conversation.findOne({ _id: id, ownerId: user.userId });
     if (!conv) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 

@@ -8,7 +8,29 @@ export default function Sidebar({ conversations, onSelect }) {
       <h2 className="font-bold text-lg mb-2">Conversations</h2>
       <button
         className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
-        onClick={() => onSelect(null)}
+        onClick={async () => {
+          try {
+            const res = await fetch("/api/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title: "New Conversation" }),
+              credentials: "include",
+            });
+            const data = await res.json();
+            console.log("New conversation response:", data);
+
+            if (!data.conversation?._id) {
+              alert("Failed to create a new conversation");
+              return;
+            }
+
+            setConversations((prev) => [data.conversation, ...prev]);
+            setSelectedConv(data.conversation);
+          } catch (err) {
+            console.error("Failed to create conversation:", err);
+            alert("Error creating conversation");
+          }
+        }}
       >
         + New Chat
       </button>

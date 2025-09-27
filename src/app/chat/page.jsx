@@ -12,7 +12,14 @@ export default function ChatPage() {
 
   useEffect(() => {
     async function fetchConversations() {
-      const res = await fetch("/api/conversations");
+      const res = await fetch("/api/chat", {
+        method: "GET",             // or "POST" if sending data
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",    // ← this sends the Clerk session cookie
+      });
+
       const data = await res.json();
       setConversations(data.conversations || []);
     }
@@ -33,18 +40,55 @@ export default function ChatPage() {
   }, [selectedConv]);
 
   const handleSend = async (content) => {
-    if (!selectedConv) {
-      alert("Select a conversation first!");
-      return;
+    let convId = selectedConv?._id;
+
+    // Auto-create conversation if none selected
+    if (!convId) {
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            conversationId: selectedConv._id,
+            messages: messagesToSend,
+          }),
+        });
+        const data = await res.json();
+        console.log("Auto-created conversation:", data);
+
+        if (!data.conversation?._id) {
+          alert("Failed to create conversation");
+          return;
+        }
+
+        convId = data.conversation._id;
+        setConversations((prev) => [data.conversation, ...prev]);
+        setSelectedConv(data.conversation);
+      } catch (err) {
+        console.error("Error creating conversation:", err);
+        alert("Error creating conversation");
+        return;
+      }
     }
-    const res = await fetch(`/api/messages/${selectedConv._id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "user", content }),
-    });
-    const data = await res.json();
-    setMessages((prev) => [...prev, data.message]);
+
+    // Send the message
+    try {
+      const res = await fetch(`/api/messages/${convId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "user", content }),
+      });
+      const data = await res.json();
+      setMessages((prev) => [...prev, data.message]);
+    } catch (err) {
+      console.error("Failed to send message:", err);
+      alert("Error sending message");
+    }
   };
+
 
   return (
     <div className="flex h-screen bg-gray-100">

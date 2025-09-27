@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/utils/db";
+import { dbConnect } from "@/utils/db";
 import Memory from "@/models/Memory";
 import { getAuthUser } from "@/utils/auth";
 

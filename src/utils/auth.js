@@ -1,16 +1,12 @@
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@clerk/nextjs/server";
 
-export function getAuthUser() {
-  try {
-    const { userId, sessionId } = auth();
+export function getAuthUser(req) {
+  const { userId, sessionId } = getAuth(req);
 
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
-
-    return { userId, sessionId };
-  } catch (err) {
-    console.error("❌ Auth error:", err.message);
+  if (!userId) {
+    console.error("❌ Auth error: User not authenticated");
     return null;
   }
+
+  return { userId, sessionId };
 }

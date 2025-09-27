@@ -1,67 +1,69 @@
-import { NextResponse } from "next/server";
-import dbConnect from "@/utils/db";
+import { dbConnect } from "@/utils/db";
 import { getAuthUser } from "@/utils/auth";
 import Message from "@/models/Message";
 import Conversation from "@/models/Conversation";
+import { NextResponse } from "next/server";
 
-export async function GET(req, { params }) {
+// ✅ GET messages for a conversation
+export async function GET(req, context) {
   try {
     await dbConnect();
-    const user = getAuthUser();
 
-    const conversationId = params.id;
-    const url = new URL(req.url);
-    const limit = parseInt(url.searchParams.get("limit")) || 50;
-    const skip = parseInt(url.searchParams.get("skip")) || 0;
-
-    if (!conversationId) {
-      return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 });
+    const user = getAuthUser(req);
+    if (!user) {
+      console.error("❌ Auth error: User not authenticated");
+      return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
     }
 
-    const messages = await Message.find({ conversationId })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
+    // ✅ await params
+    const { id } = await context.params;
+
+    const messages = await Message.find({ conversationId: id })
+      .sort({ createdAt: 1 })
       .lean()
       .exec();
 
     return NextResponse.json({ messages });
   } catch (err) {
-    console.error("Messages GET error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("❌ GET /api/messages/[id] error:", err);
+    return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
   }
 }
 
-export async function POST(req, { params }) {
+// ✅ POST a new message to a conversation
+export async function POST(req, context) {
   try {
     await dbConnect();
-    const user = getAuthUser();
 
-    const conversationId = params.id;
-    const { role = "user", content = "", attachments = [] } = await req.json();
-
-    if (!conversationId) {
-      return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 });
+    const user = getAuthUser(req);
+    if (!user) {
+      console.error("❌ Auth error: User not authenticated");
+      return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
     }
 
-    if (!content && attachments.length === 0) {
-      return NextResponse.json({ error: "Message content or attachments required" }, { status: 400 });
+    const { id } = await context.params;
+    const { role, content } = await req.json();
+
+    if (!content) {
+      return NextResponse.json({ error: "Content is required" }, { status: 400 });
     }
 
     // Create message
-    const message = await Message.createMessage({
-      conversationId,
+    const message = await Message.create({
+      conversationId: id,
+      senderId: user.userId,
       role,
       content,
-      attachments,
     });
 
-    // Touch the conversation to update lastMessageAt
-    await Conversation.findByIdAndUpdate(conversationId, { lastMessageAt: new Date() }).exec();
+    // Update conversation timestamp
+    await Conversation.findByIdAndUpdate(id, {
+      lastMessageAt: new Date(),
+    });
 
     return NextResponse.json({ message });
   } catch (err) {
-    console.error("Messages POST error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("❌ POST /api/messages/[id] error:", err);
+    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
 }

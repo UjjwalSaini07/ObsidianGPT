@@ -1,30 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import ChatWindow from "./components/ChatWindow";
 import ChatInput from "./components/ChatInput";
 import Sidebar from "./components/Sidebar";
 
 export default function ChatPage() {
+  const { getToken } = useAuth();
   const [messages, setMessages] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [selectedConv, setSelectedConv] = useState(null);
 
   useEffect(() => {
     async function fetchConversations() {
-      const res = await fetch("/api/chat", {
-        method: "GET",             // or "POST" if sending data
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",    // ← this sends the Clerk session cookie
-      });
+      try {
+        const token = await getToken(); // ← get JWT
+        const res = await fetch("/api/chat", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // ← pass token
+          },
+        });
 
-      const data = await res.json();
-      setConversations(data.conversations || []);
+        const data = await res.json();
+        setConversations(data.conversations || []);
+      } catch (err) {
+        console.error("Error fetching conversations:", err);
+      }
     }
     fetchConversations();
-  }, []);
+  }, [getToken]);
 
   useEffect(() => {
     if (!selectedConv) {
@@ -32,28 +39,37 @@ export default function ChatPage() {
       return;
     }
     async function fetchMessages() {
-      const res = await fetch(`/api/messages/${selectedConv._id}`);
-      const data = await res.json();
-      setMessages(data.messages || []);
+      try {
+        const token = await getToken();
+        const res = await fetch(`/api/messages/${selectedConv._id}`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        setMessages(data.messages || []);
+      } catch (err) {
+        console.error("Error fetching messages:", err);
+      }
     }
     fetchMessages();
-  }, [selectedConv]);
+  }, [selectedConv, getToken]);
 
   const handleSend = async (content) => {
     let convId = selectedConv?._id;
 
-    // Auto-create conversation if none selected
     if (!convId) {
       try {
+        const token = await getToken();
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
-          credentials: "include",
           body: JSON.stringify({
-            conversationId: selectedConv._id,
-            messages: messagesToSend,
+            title: "New Conversation",
           }),
         });
         const data = await res.json();
@@ -76,9 +92,13 @@ export default function ChatPage() {
 
     // Send the message
     try {
+      const token = await getToken();
       const res = await fetch(`/api/messages/${convId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ role: "user", content }),
       });
       const data = await res.json();
@@ -88,7 +108,6 @@ export default function ChatPage() {
       alert("Error sending message");
     }
   };
-
 
   return (
     <div className="flex h-screen bg-gray-100">

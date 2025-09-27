@@ -3,14 +3,14 @@ import { dbConnect } from "@/utils/db";
 import { getAuthUser } from "@/utils/auth";
 import Conversation from "@/models/Conversation";
 import { generateAIResponse } from "@/utils/vercelAI";
-import { estimateTokens } from "@/utils/token"; 
+import { estimateTokens } from "@/utils/token";
 import { AI } from "@/helpers/constants";
 
 export async function GET(req) {
   try {
     await dbConnect();
 
-    const user = getAuthUser();
+    const user = getAuthUser(req);
     if (!user) {
       return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
     }
@@ -31,14 +31,14 @@ export async function POST(req) {
   try {
     await dbConnect();
 
-    const user = getAuthUser();
+    const user = getAuthUser(req);
     if (!user) {
       return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
     }
 
     const body = await req.json();
 
-    // AI response
+    // If sending AI messages
     if (body.conversationId && body.messages) {
       const { conversationId, messages } = body;
 
@@ -46,6 +46,7 @@ export async function POST(req) {
         return NextResponse.json({ error: "Messages array is required." }, { status: 400 });
       }
 
+      // Check total tokens
       const totalTokens = messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
       if (totalTokens > AI.MAX_MESSAGE_LENGTH) {
         return NextResponse.json({ error: "Message too long." }, { status: 400 });
@@ -59,7 +60,7 @@ export async function POST(req) {
       });
     }
 
-    // Create new conversation
+    // If creating a new conversation
     const { title } = body;
     const conversation = await Conversation.createForUser(user.userId, {
       title: title || "New Conversation",
